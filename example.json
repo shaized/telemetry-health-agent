@@ -1,39 +1,24 @@
 {
-  "advisory": {
-    "id": "DEMO-2026-001",
-    "vendor": "Example Vendor",
-    "product": "Example Gateway",
-    "affected_versions": [
-      "2.4.0",
-      "2.4.1"
-    ],
-    "source": "https://example.org/advisories/DEMO-2026-001",
-    "exploitation": "unknown"
-  },
-  "inventory": {
-    "scope": "Fictional training lab snapshot",
-    "assets": [
-      {
-        "id": "lab-gateway",
-        "vendor": "Example Vendor",
-        "product": "Example Gateway",
-        "version": "2.4.1",
-        "exposure": "internet"
-      },
-      {
-        "id": "lab-worker",
-        "vendor": "Example Vendor",
-        "product": "Example Gateway",
-        "version": null,
-        "exposure": "internal"
-      },
-      {
-        "id": "lab-updated",
-        "vendor": "Example Vendor",
-        "product": "Example Gateway",
-        "version": "2.5.0",
-        "exposure": "internal"
-      }
-    ]
-  }
+  "as_of": "2026-01-15T12:00:00Z",
+  "scope": "Fictional lab source inventory",
+  "sources": [
+    {
+      "id": "identity",
+      "owner": "Identity team",
+      "max_silence_seconds": 900,
+      "last_seen": "2026-01-15T11:58:00Z"
+    },
+    {
+      "id": "endpoint",
+      "owner": "Endpoint team",
+      "max_silence_seconds": 900,
+      "last_seen": "2026-01-15T10:30:00Z"
+    },
+    {
+      "id": "audit",
+      "owner": "Platform team",
+      "max_silence_seconds": 3600,
+      "last_seen": null
+    }
+  ]
 }

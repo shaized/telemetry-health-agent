@@ -1,18 +1,18 @@
 ---
-name: threat-intel-agent
-description: Model-agnostic threat intelligence skill with a local advisory-to-inventory matching tool and synthetic examples.
+name: telemetry-health-agent
+description: Log-source health skill with freshness thresholds, maintenance context and explicit missing-data/clock-error states.
 ---
 
-# Threat Intelligence Agent
+# Telemetry Health Agent
 
-Turn an advisory into an evidence-backed exposure review.
+Tell a quiet environment from an unobserved one.
 
 ## Workflow
 
-1. Identify the advisory, affected product, source dates and the assessment scope. Prefer primary vendor advisories and authoritative exploitation evidence.
-2. Compare the advisory with the supplied asset inventory using agent.py. The helper accepts exact versions only; manually resolve version ranges, packaging and backports with evidence.
-3. Assess runtime presence, configuration, exposure, required attacker access and controls separately. Record what is measured and what is inferred.
-4. Return an exposure assessment with evidence references, missing coverage, confidence reasoning and specific next steps. A version match establishes a candidate, not compromise.
+1. Build the expected source list and confirm normal delivery cadence, owner, time semantics and approved maintenance windows.
+2. Run agent.py against a timestamped snapshot. Preserve unknown and future-timestamp states instead of treating them as healthy.
+3. For an apparent gap, distinguish low expected activity, collection failure, transport delay, parsing failure and query mistakes. A fresh event proves only freshness.
+4. Report affected coverage and the next diagnostic check per source. Verify recovery with fresh events and expected volume; do not silently suppress monitoring during maintenance.
 
 ## Local evidence tool
 

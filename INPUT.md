@@ -2,7 +2,7 @@
 
 ## Input
 
-The root has advisory and inventory objects. advisory requires id, vendor, product, affected_versions (a nonempty list of exact version strings), source and exploitation (observed, not_reported or unknown). inventory requires scope and assets. Each asset requires a unique id, vendor, product, version (string or null), and exposure (internet, internal or unknown). Vendor/product matching ignores case and surrounding whitespace; version matching is exact. An unlisted version is unresolved, not safe.
+The root requires as_of, scope and sources. Each source needs unique id, owner, positive integer max_silence_seconds and last_seen (offset-aware timestamp or null). Optional maintenance_until is an offset-aware timestamp. A source is stale only when its age is strictly greater than the limit; negative age is future_timestamp. Active maintenance changes status but preserves underlying freshness. Expired maintenance does not suppress the result. Null last_seen is unknown.
 
 See [example.json](example.json) for a complete fictional input. All demo identities, indicators, events, products and reputation providers are synthetic. Documentation IPs and example domains are not threat intelligence.
 
@@ -16,6 +16,6 @@ JSON preserves evidence text. Markdown renders evidence as literal escaped text,
 
 ## Example interpretation
 
-One affected-version candidate, one unknown version and one version not listed in the advisory. Overall exposure remains subject to verification.
+One fresh source, one stale source and one source with unknown freshness. Freshness is explicitly separated from full pipeline health.
 
-Vendor advisories and package maintainers should be the primary source for affected ranges; the demo advisory is fictional.
+Thresholds should reflect each source's expected behavior, maintenance schedule and timestamp semantics. No particular SIEM is assumed.

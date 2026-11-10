@@ -1,86 +1,69 @@
-"""Compare an advisory snapshot with an explicitly scoped inventory."""
+"""Evaluate expected log-source freshness against an explicit reference time."""
 
-from runtime import choice, cli, obj, report, rows, strings, text, unique
+from runtime import cli, instant, integer, report, rows, text, unique, utc
 
 
 def analyze(data):
-    advisory = obj(data.get("advisory"), "advisory")
-    inventory = obj(data.get("inventory"), "inventory")
-    advisory_id = text(advisory.get("id"), "advisory.id")
-    vendor = text(advisory.get("vendor"), "advisory.vendor").casefold()
-    product = text(advisory.get("product"), "advisory.product").casefold()
-    versions = set(strings(advisory.get("affected_versions"), "affected_versions"))
-    if not versions:
-        raise ValueError("affected_versions must contain explicitly verified versions")
-    source = text(advisory.get("source"), "advisory.source")
-    exploitation = choice(
-        advisory.get("exploitation"),
-        ["observed", "not_reported", "unknown"],
-        "exploitation",
-    )
-    scope = text(inventory.get("scope"), "inventory.scope")
-    assets = rows(inventory.get("assets"), "inventory.assets")
-    unique(assets)
+    as_of = instant(data.get("as_of"), "as_of")
+    scope = text(data.get("scope"), "scope")
+    sources = rows(data.get("sources"), "sources")
+    unique(sources)
     findings = []
-    for asset in assets:
-        asset_vendor = text(asset.get("vendor"), "asset.vendor").casefold()
-        asset_product = text(asset.get("product"), "asset.product").casefold()
-        if (asset_vendor, asset_product) != (vendor, product):
-            continue
-        version = asset.get("version")
-        if version is not None:
-            version = text(version, "asset.version")
-        exposure = choice(
-            asset.get("exposure", "unknown"),
-            ["internet", "internal", "unknown"],
-            "asset.exposure",
-        )
-        status = (
-            "version_unknown"
-            if version is None
-            else "affected_version_match"
-            if version in versions
-            else "version_not_listed"
-        )
-        priority = "verify"
-        if status == "affected_version_match":
-            priority = (
-                "expedite"
-                if exploitation == "observed" or exposure == "internet"
-                else "review"
+    for source in sources:
+        owner = text(source.get("owner"), "source.owner")
+        limit = integer(source.get("max_silence_seconds"), "max_silence_seconds", 1)
+        last_seen = source.get("last_seen")
+        age = None
+        if last_seen is None:
+            health = "unknown"
+        else:
+            parsed = instant(last_seen, "source.last_seen")
+            age = (as_of - parsed).total_seconds()
+            health = (
+                "future_timestamp" if age < 0 else "stale" if age > limit else "fresh"
             )
+            last_seen = utc(parsed)
+        maintenance = source.get("maintenance_until")
+        active_maintenance = (
+            maintenance is not None
+            and instant(maintenance, "maintenance_until") > as_of
+        )
         findings.append(
             {
-                "asset": asset["id"],
-                "version": version,
-                "status": status,
-                "exposure": exposure,
-                "review_priority": priority,
-                "evidence": [f"inventory:{asset['id']}", source],
+                "source_id": source["id"],
+                "owner": owner,
+                "freshness": health,
+                "status": "maintenance" if active_maintenance else health,
+                "last_seen": last_seen,
+                "age_seconds": age,
+                "max_silence_seconds": limit,
+                "maintenance_until": utc(instant(maintenance, "maintenance_until"))
+                if maintenance
+                else None,
             }
         )
-    matches = sum(f["status"] == "affected_version_match" for f in findings)
     return report(
-        "Threat Intelligence Agent",
+        "Telemetry Health Agent",
         {
-            "advisory": advisory_id,
             "scope": scope,
-            "assets_examined": len(assets),
-            "product_candidates": len(findings),
-            "affected_version_matches": matches,
-            "assessment": "potential_exposure" if matches else "inconclusive",
+            "as_of": utc(as_of),
+            "expected_sources": len(sources),
+            "needs_review": sum(
+                f["status"] not in ("fresh", "maintenance") for f in findings
+            ),
+            "in_maintenance": sum(f["status"] == "maintenance" for f in findings),
         },
         findings,
         [
-            "Exact vendor/product and exact version matching only; no aliases, ranges, backport or reachability analysis.",
-            "A listed vulnerable version does not prove exploitability or compromise; a non-listed version is not confirmed safe.",
-            "The input snapshot is not independently verified. Inventory completeness and source freshness are unknown.",
-            "Review priority is a transparent example heuristic, not CVSS, SSVC or a remediation SLA.",
+            "A recent event establishes freshness only, not completeness, parsing quality or correct event volume.",
+            "Missing last_seen is unknown, not evidence of zero activity. Future timestamps require clock/source review.",
+            "Expected sources, thresholds and maintenance windows are caller supplied; quiet sources need context-specific thresholds.",
+            "No SIEM query, notification, suppression or configuration change is performed.",
         ],
         [
-            "Verify advisory scope, version ranges and exploitation evidence against primary sources.",
-            "Check runtime version, configuration, reachability and mitigations for each candidate.",
-            "Record missing inventory coverage and assign an owner to unresolved exposure.",
+            "Check collection credentials, delivery errors, parsing and expected source activity for stale or unknown sources.",
+            "Check clocks and ingestion-time semantics for future timestamps.",
+            "Verify recovery with fresh events and volume checks before marking a pipeline healthy.",
         ],
     )
 
